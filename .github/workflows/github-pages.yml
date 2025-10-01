@@ -1,0 +1,60 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Build static site (copy only frontend)
+        run: |
+          rm -rf dist
+          mkdir -p dist
+          cp -r css dist/css || true
+          cp -r js dist/js || true
+          cp -r icons dist/icons || true
+          cp -f index.html dist/index.html || true
+          cp -f delhi-advanced.html dist/delhi-advanced.html || true
+          cp -f login.html dist/login.html || true
+          cp -f manifest.json dist/manifest.json || true
+          cp -f sw.js dist/sw.js || true
+          # Optional demo page
+          if [ -f frontend.html ]; then cp -f frontend.html dist/frontend.html; fi
+          # Prevent Jekyll processing
+          touch dist/.nojekyll
+          # Rewrite absolute paths to relative for GitHub Pages subpath
+          sed -i 's|/delhi-advanced.html|delhi-advanced.html|g' dist/index.html || true
+          sed -i 's|/login.html|login.html|g' dist/index.html || true
+          sed -i 's|/api/health|api/health|g' dist/index.html || true
+          # Adjust SW registration to relative in the built artifact only
+          sed -i "s|navigator.serviceWorker.register('/sw.js')|navigator.serviceWorker.register('sw.js')|g" dist/delhi-advanced.html || true
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
