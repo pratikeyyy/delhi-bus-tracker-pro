@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delhi Bus Tracker Pro - Real-Time Transit System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1a237e">
+    <style>
+        :root {
+            --primary: #1a237e;
+            --secondary: #3f51b5;
+            --accent: #ff4081;
+            --success: #00c853;
+            --warning: #ff9800;
+            --danger: #f44336;
+            --bg: #0a0e27;
+            --card: #1e2139;
+            --card-hover: #252847;
+            --muted: #2a2d47;
+            --text: #ffffff;
+            --text-muted: #b0bec5;
+            --border: #3a3f5c;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1d3a 50%, #2a2d47 100%);
+            color: var(--text);
+            padding: 15px;
+            min-height: 100vh;
+        }
+        
+        .container-main { max-width: 1400px; margin: 0 auto; }
+        .map-card { height: 500px; border-radius: 16px; overflow: hidden; border: 2px solid var(--border); position: relative; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+        #map { height: 500px; width: 100%; z-index: 1; border-radius: 16px; }
+        .analytics-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); backdrop-filter: blur(10px); }
+        .metric-box { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 4px 16px rgba(26,35,126,0.3); }
+        .metric-value { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+        .metric-label { font-size: 12px; opacity: 0.9; }
+        .bus-card { border-radius: 16px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,0.2); padding: 20px; backdrop-filter: blur(10px); }
+        .badge-status { font-weight: 700; padding: 6px 12px; border-radius: 20px; font-size: 12px; }
+        .status-running { background: var(--success); color: white; }
+        .status-stopped { background: var(--warning); color: white; }
+        .status-breakdown { background: var(--danger); color: white; }
+        .left-col { width: 65%; }
+        .right-col { width: 35%; }
+        .small-muted { font-size: 13px; color: var(--text-muted); }
+        .header-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+        .btn-primary { background: var(--primary); border: none; }
+        .btn-primary:hover { background: var(--secondary); }
+        .form-control, .form-select { background: var(--muted); border: 1px solid var(--border); color: var(--text); }
+        .form-control:focus, .form-select:focus { background: var(--muted); border-color: var(--secondary); color: var(--text); box-shadow: 0 0 0 0.2rem rgba(63,81,181,0.25); }
+        .live-indicator { display: inline-block; width: 8px; height: 8px; background: var(--success); border-radius: 50%; margin-right: 8px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        
+        .bus-marker { 
+            background: #00c853; 
+            color: white; 
+            padding: 4px 8px; 
+            border-radius: 12px; 
+            font-size: 11px; 
+            font-weight: bold; 
+            text-align: center; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+        .location-marker { font-size: 16px; }
+        .custom-bus-marker { border: none !important; background: transparent !important; }
+        .custom-location { border: none !important; background: transparent !important; }
+        
+        @keyframes busMove {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-2px); }
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        .bus-marker:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        .bus-popup { min-width: 200px; }
+        .route-result { transition: all 0.3s ease; }
+        .route-result:hover { background: var(--card-hover); }
+        .alert { background: var(--muted); border: 1px solid var(--border); color: var(--text); }
+        .alert-warning { border-color: var(--warning); }
+        .alert-info { border-color: var(--secondary); }
+        
+        .search-section { background: var(--card); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .quick-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .quick-btn { background: var(--muted); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: all 0.3s; }
+        .quick-btn:hover { background: var(--secondary); }
+
+        /* Top Navbar (tabs) */
+        .top-navbar { background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 14px; padding: 10px 14px; margin-bottom: 16px; position: sticky; top: 10px; z-index: 100; backdrop-filter: blur(10px); box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
+        .nav-link { color: var(--text-muted); padding: 8px 12px; border-radius: 8px; transition: all .2s; font-weight: 500; text-decoration: none; }
+        .nav-link:hover { color: #fff; background: var(--card-hover); }
+        .nav-link.active { color: #fff; background: linear-gradient(135deg, var(--primary), var(--secondary)); }
+        .login-btn { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fff; border: 0; border-radius: 10px; padding: 8px 14px; font-weight: 600; }
+        .login-btn:hover { filter: brightness(1.05); }
+    </style>
+</head>
+<body>
+    <div class="container-main">
+        <!-- Top Navigation Tabs -->
+        <div class="top-navbar d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-bus text-primary"></i>
+                    <strong>Delhi Bus Tracker</strong>
+                </div>
+                <a href="#map" class="nav-link active" data-nav="map">Map</a>
+                <a href="#routeFinder" class="nav-link" data-nav="routes">Routes</a>
+                <a href="#stopInfo" class="nav-link" data-nav="stops">Stops</a>
+                <a href="#stats" class="nav-link" data-nav="stats">Stats</a>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button class="login-btn" id="loginTab"><i class="fas fa-user me-1"></i> Login</button>
+            </div>
+        </div>
+        <!-- Header -->
+        <div class="header-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-1"><i class="fas fa-bus text-primary me-2"></i>Delhi Bus Tracker Pro</h1>
+                    <p class="text-muted mb-0">Professional Real-time GPS tracking for Delhi Transport Corporation</p>
+                </div>
+                <div class="text-end">
+                    <div class="small-muted">
+                        <span class="live-indicator"></span>Live Tracking Active
+                    </div>
+                    <div class="small-muted">Buses Moving: <span id="movingBuses" class="text-success fw-bold">7</span></div>
+                    <div class="small-muted">Last updated: <span id="lastUpdate"></span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-3">
+            <!-- Left Column -->
+            <div class="left-col">
+                <!-- Map Section -->
+                <div class="map-card">
+                    <div id="map"></div>
+                </div>
+
+                <!-- Bus Details -->
+                <div class="analytics-card mt-3">
+                    <h5 class="mb-3"><i class="fas fa-info-circle text-info me-2"></i>Selected Bus Details</h5>
+                    <div id="busDetails">
+                        <div class="text-center text-muted">
+                            <p>Click on any bus marker on the map to view details</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="right-col">
+                <!-- Route Search -->
+                <div class="analytics-card" id="routeFinder">
+                    <h5 class="mb-3"><i class="fas fa-route text-success me-2"></i>Route Finder</h5>
+                    
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label">From</label>
+                            <select class="form-select" id="fromSelect">
+                                <option value="">Select Origin</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">To</label>
+                            <select class="form-select" id="toSelect">
+                                <option value="">Select Destination</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary w-100 mb-3" onclick="findRoute()"><i class="fas fa-search me-2"></i>Find Routes</button>
+                    
+                    <div id="routeResults"></div>
+                </div>
+
+                <!-- Stop Search -->
+                <div class="analytics-card" id="stopInfo">
+                    <h5 class="mb-3"><i class="fas fa-map-marker-alt text-warning me-2"></i>Bus Stop Info</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Search Bus Stop</label>
+                        <select class="form-select" id="stopSearch" onchange="searchStop()">
+                            <option value="">Select a stop</option>
+                        </select>
+                    </div>
+                    
+                    <div id="stopResults"></div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="analytics-card">
+                    <h5 class="mb-3">⚡ Quick Actions</h5>
+                    <div class="quick-actions">
+                        <div class="quick-btn" onclick="showAllBuses()">Show All Buses</div>
+                        <div class="quick-btn" onclick="showTrafficInfo()">Traffic Info</div>
+                        <div class="quick-btn" onclick="showNearbyStops()">Nearby Stops</div>
+                        <div class="quick-btn" onclick="showFareCalculator()">Fare Calculator</div>
+                        <div class="quick-btn" onclick="toggleAnalytics()">📊 Analytics</div>
+                        <div class="quick-btn" onclick="userAuth.showAuth()">👤 Login</div>
+                    </div>
+                </div>
+
+                <!-- Live Stats -->
+                <div class="analytics-card" id="stats">
+                    <h5 class="mb-3">📊 Live Statistics</h5>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <div class="metric-box">
+                                <div class="metric-value" id="activeBuses">5</div>
+                                <div class="metric-label">Active Buses</div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="metric-box">
+                                <div class="metric-value" id="totalPassengers">185</div>
+                                <div class="metric-label">Passengers</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric-box">
+                                <div class="metric-value" id="avgDelay">+2</div>
+                                <div class="metric-label">Avg Delay (min)</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric-box">
+                                <div class="metric-value" id="routesCovered">5</div>
+                                <div class="metric-label">Routes Active</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weather & Traffic -->
+                <div class="analytics-card">
+                    <h5 class="mb-3">🌤️ Conditions</h5>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="small-muted">Weather</div>
+                            <div class="fw-bold">28°C Clear</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="small-muted">Traffic</div>
+                            <div class="fw-bold text-warning">Moderate</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/enhanced-delhi-data.js"></script>
+    <script src="js/live-tracking.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/analytics-dashboard.js"></script>
+    <script src="js/user-auth.js"></script>
+    <script src="js/i18n.js"></script>
+    <script>
+        let busTracker;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize bus tracker
+            busTracker = new DelhiBusTracker('map');
+            window.busTracker = busTracker;
+            
+            // Populate dropdowns
+            populateLocationDropdowns();
+            
+            // Update timestamp
+            updateTimestamp();
+            setInterval(updateTimestamp, 1000);
+            
+            // Update live stats
+            setInterval(updateLiveStats, 5000);
+
+            // Auto-open Login modal if linked via hash or query
+            try {
+                const hash = window.location.hash.toLowerCase();
+                const params = new URLSearchParams(window.location.search);
+                if (hash.includes('login') || params.get('login') === '1' || params.get('login') === 'true') {
+                    if (window.userAuth && typeof window.userAuth.showAuth === 'function') {
+                        window.userAuth.showAuth();
+                    } else {
+                        // If userAuth not ready yet, retry shortly
+                        setTimeout(() => window.userAuth && window.userAuth.showAuth && window.userAuth.showAuth(), 500);
+                    }
+                }
+            } catch (e) { /* no-op */ }
+
+            // Top navbar interactions
+            const navLinks = document.querySelectorAll('.top-navbar .nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    e.currentTarget.classList.add('active');
+                });
+            });
+            const loginTabBtn = document.getElementById('loginTab');
+            if (loginTabBtn) {
+                loginTabBtn.addEventListener('click', () => {
+                    if (window.userAuth && typeof window.userAuth.showAuth === 'function') {
+                        window.userAuth.showAuth();
+                    }
+                });
+            }
+
+            // Auto filter on origin/destination selection
+            const fromSel = document.getElementById('fromSelect');
+            const toSel = document.getElementById('toSelect');
+            function autoFilter() {
+                const from = fromSel.value;
+                const to = toSel.value;
+                if (from && to && from !== to) {
+                    // Run the usual route search pipeline
+                    findRoute();
+                } else if (window.busTracker && typeof window.busTracker.showAllBuses === 'function') {
+                    window.busTracker.showAllBuses();
+                }
+            }
+            fromSel && fromSel.addEventListener('change', autoFilter);
+            toSel && toSel.addEventListener('change', autoFilter);
+        });
+
+        function populateLocationDropdowns() {
+            const locations = Object.keys(ENHANCED_DELHI_DATA.locations);
+            const fromSelect = document.getElementById('fromSelect');
+            const toSelect = document.getElementById('toSelect');
+            const stopSelect = document.getElementById('stopSearch');
+            
+            locations.forEach(location => {
+                fromSelect.innerHTML += `<option value="${location}">${location}</option>`;
+                toSelect.innerHTML += `<option value="${location}">${location}</option>`;
+                stopSelect.innerHTML += `<option value="${location}">${location}</option>`;
+            });
+        }
+
+        function updateTimestamp() {
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+
+        function updateLiveStats() {
+            const activeBuses = ENHANCED_DELHI_DATA.liveBuses.filter(bus => bus.status === 'running').length;
+            const totalPassengers = ENHANCED_DELHI_DATA.liveBuses.reduce((sum, bus) => sum + bus.passengers, 0);
+            const avgDelay = Math.round(ENHANCED_DELHI_DATA.liveBuses.reduce((sum, bus) => sum + bus.delay, 0) / ENHANCED_DELHI_DATA.liveBuses.length);
+            
+            document.getElementById('activeBuses').textContent = activeBuses;
+            document.getElementById('totalPassengers').textContent = totalPassengers;
+            document.getElementById('avgDelay').textContent = avgDelay > 0 ? `+${avgDelay}` : avgDelay;
+            document.getElementById('routesCovered').textContent = Object.keys(ENHANCED_DELHI_DATA.routes).length;
+            document.getElementById('movingBuses').textContent = activeBuses;
+        }
+
+        // Quick action functions
+        function showAllBuses() {
+            busTracker.map.fitBounds(ENHANCED_DELHI_DATA.liveBuses.map(bus => bus.position));
+        }
+
+        function showTrafficInfo() {
+            alert('🚦 Traffic Status:\n\nConnaught Place: Heavy\nKarol Bagh: Moderate\nChandni Chowk: Heavy\nITO: Moderate\n\nAvoid peak hours (8-10 AM, 6-8 PM)');
+        }
+
+        function showNearbyStops() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const userLat = position.coords.latitude;
+                    const userLng = position.coords.longitude;
+                    
+                    // Find nearest stops (simplified)
+                    let nearest = [];
+                    Object.entries(ENHANCED_DELHI_DATA.locations).forEach(([name, coords]) => {
+                        const distance = Math.sqrt(Math.pow(coords[0] - userLat, 2) + Math.pow(coords[1] - userLng, 2));
+                        nearest.push({ name, distance });
+                    });
+                    
+                    nearest.sort((a, b) => a.distance - b.distance);
+                    const top3 = nearest.slice(0, 3).map(stop => stop.name).join(', ');
+                    
+                    alert(`📍 Nearest bus stops:\n${top3}`);
+                });
+            } else {
+                alert('📍 Geolocation not supported. Showing major stops:\nConnaught Place, India Gate, Red Fort');
+            }
+        }
+
+        function showFareCalculator() {
+            const from = prompt('Enter origin stop:');
+            const to = prompt('Enter destination stop:');
+            
+            if (from && to && ENHANCED_DELHI_DATA.locations[from] && ENHANCED_DELHI_DATA.locations[to]) {
+                const routes = busTracker.searchRoute(from, to);
+                if (routes.length > 0) {
+                    const minFare = Math.min(...routes.map(r => r.fare));
+                    const maxFare = Math.max(...routes.map(r => r.fare));
+                    alert(`💰 Fare from ${from} to ${to}:\n\nMinimum: ₹${minFare}\nMaximum: ₹${maxFare}\n\n${routes.length} route(s) available`);
+                } else {
+                    alert('❌ No direct routes found between these stops');
+                }
+            } else {
+                alert('❌ Please enter valid stop names');
+            }
+        }
+
+        // Safe analytics toggler
+        function toggleAnalytics() {
+            if (window.analytics && typeof window.analytics.toggle === 'function') {
+                window.analytics.toggle();
+            } else {
+                // Retry shortly if analytics is still initializing
+                setTimeout(() => {
+                    if (window.analytics && typeof window.analytics.toggle === 'function') {
+                        window.analytics.toggle();
+                    } else if (window.notificationManager) {
+                        window.notificationManager.show('Please wait', 'Analytics is still loading...', 'info', 2500);
+                    }
+                }, 600);
+            }
+        }
+
+        console.log('🚌 Delhi Bus Tracker initialized successfully!');
+        console.log('📊 Features: Real-time tracking, Route search, Live ETA, Traffic info');
+        console.log('🗺️ Coverage: Major Delhi locations with DTC routes');
+        
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => {
+                    console.log('✅ Service Worker registered successfully:', reg.scope);
+                    // Force activate updated SW
+                    if (reg.waiting) {
+                        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        if (!newWorker) return;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                            }
+                        });
+                    });
+
+                    let refreshing = false;
+                    navigator.serviceWorker.addEventListener('controllerchange', () => {
+                        if (refreshing) return;
+                        refreshing = true;
+                        // Reload to ensure latest assets (fixes stale login/map)
+                        window.location.reload();
+                    });
+                })
+                .catch(error => {
+                    console.log('❌ Service Worker registration failed:', error);
+                });
+        }
+    </script>
+</body>
+</html>

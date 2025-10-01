@@ -1,0 +1,94 @@
+:root{
+  --blue:#0b74d1;
+  --teal:#00a08a;
+  --accent:#ff6f00;
+  --bg:#f6fbfc;
+  --card:#ffffff;
+  --muted:#eef7f8;
+  --text:#102028;
+}
+
+body { 
+  font-family: 'Poppins', sans-serif; 
+  background: linear-gradient(180deg,#f3fbff 0%, #f6fff9 100%); 
+  color:var(--text); 
+  padding:18px; 
+}
+
+.container-main{
+  max-width:1250px; 
+  margin:0 auto;
+}
+
+.map-card{
+  height:420px; 
+  border-radius:12px; 
+  overflow:hidden; 
+  border:1px solid #e6f4f3; 
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420"><rect fill="%23eaf7fb" width="100%" height="100%"/><g fill="%23bfe9e0"><path d="M40 360h1120v8H40z"/><circle cx="160" cy="120" r="16"/><circle cx="320" cy="200" r="14"/><circle cx="520" cy="90" r="12"/><circle cx="840" cy="240" r="16"/><circle cx="980" cy="150" r="12"/></g></svg>') center/cover no-repeat;
+}
+
+.select-bus { 
+  margin-bottom:10px; 
+}
+
+.bus-card { 
+  border-radius:10px; 
+  background:var(--card); 
+  box-shadow:0 6px 18px rgba(10,30,60,0.04); 
+  padding:12px; 
+}
+
+.badge-status { 
+  font-weight:700; 
+  padding:6px 10px; 
+  border-radius:999px; 
+}
+
+.status-on { 
+  background: rgba(0,160,138,0.09); 
+  color:var(--teal); 
+}
+
+.status-del { 
+  color: var(--accent); 
+}
+
+.left-col { 
+  width:62%; 
+}
+
+.right-col { 
+  width:38%; 
+}
+
+.map-overlay { 
+  position: absolute; 
+  right:18px; 
+  top:18px; 
+  background:rgba(255,255,255,0.95); 
+  padding:10px; 
+  border-radius:10px; 
+  box-shadow:0 8px 20px rgba(0,0,0,0.06); 
+}
+
+.small-muted { 
+  font-size:13px; 
+  color:#51636b; 
+}
+
+.table-status th, .table-status td { 
+  vertical-align: middle; 
+}
+
+@media(max-width:1100px){ 
+  .d-flex-row{
+    flex-direction:column!important
+  } 
+  .left-col,.right-col{
+    width:100%!important
+  } 
+  .map-card{
+    height:320px
+  } 
+}

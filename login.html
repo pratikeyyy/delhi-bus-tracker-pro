@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login • Delhi Bus Tracker Pro</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0e27; --card: rgba(255,255,255,0.08); --border: rgba(255,255,255,0.18);
+      --text: #e3f2fd; --muted: rgba(255,255,255,0.06); --primary: #1a237e; --secondary: #512da8;
+    }
+    body { background: linear-gradient(135deg, #0a0e27 0%, #1a1d3a 50%, #2a2d47 100%); color: var(--text); min-height: 100vh; display: grid; place-items: center; }
+    .glass { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: min(420px, 92vw); box-shadow: 0 20px 60px rgba(0,0,0,0.45); }
+    .brand { display:flex; align-items:center; gap:10px; margin-bottom: 18px; }
+    .brand i { color:#90caf9; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--secondary)); border: 0; }
+    .actions { display:flex; gap:10px; margin-top:12px; }
+    .muted { color:#90a4ae; }
+  </style>
+</head>
+<body>
+  <div class="glass">
+    <div class="brand"><i class="fas fa-bus"></i><h4 class="m-0">Delhi Bus Tracker Pro</h4></div>
+    <p class="muted mb-3">Sign in to personalize routes, get alerts and track your trips live.</p>
+    <div id="loginHost"></div>
+    <div class="actions">
+      <button id="openAsGuest" class="btn btn-outline-light w-100"><i class="fas fa-user"></i> Continue as Guest</button>
+      <a class="btn btn-primary w-100" href="/delhi-advanced.html" target="_blank"><i class="fas fa-map"></i> Open Map</a>
+    </div>
+    <div class="mt-3 text-center"><a href="/delhi-advanced.html#login" class="muted">Use in-page login instead</a></div>
+  </div>
+
+  <script src="/js/user-auth.js"></script>
+  <script>
+    // Post login action: open map in new tab and keep this tab for re-login if desired
+    window.postLoginAction = function(user){
+      try {
+        window.open('/delhi-advanced.html', '_blank');
+      } catch(e) {}
+    };
+
+    // Mount auth modal UI and open it
+    document.addEventListener('DOMContentLoaded', function(){
+      // Ensure auth UI exists (user-auth.js injects the modal into body)
+      setTimeout(() => { if (window.userAuth && typeof window.userAuth.showAuth==='function') userAuth.showAuth(); }, 100);
+
+      // Continue as guest opens map in new tab
+      document.getElementById('openAsGuest').addEventListener('click', function(){
+        window.open('/delhi-advanced.html', '_blank');
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bus Tracker Mockup - Passenger & Bus Detail</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+<style>
+  :root{
+    --primary:#1a237e;
+    --secondary:#3f51b5;
+    --accent:#ff4081;
+    --success:#00c853;
+    --warning:#ff9800;
+    --bg:#0a0e27;
+    --card:#1e2139;
+    --card-hover:#252847;
+    --muted:#2a2d47;
+    --text:#ffffff;
+    --text-muted:#b0bec5;
+    --border:#3a3f5c;
+  }
+  body { 
+    font-family: 'Poppins', sans-serif; 
+    background: linear-gradient(135deg, #0a0e27 0%, #1a1d3a 50%, #2a2d47 100%); 
+    color: var(--text); 
+    padding: 20px; 
+    min-height: 100vh;
+  }
+  .container-main{max-width:1300px; margin:0 auto;}
+  .map-card{height:450px; border-radius:16px; overflow:hidden; border:2px solid var(--border); position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.3);}
+  #map{height:450px; width:100%; z-index:1; border-radius:16px;}
+  .analytics-card{background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:20px; box-shadow:0 8px 24px rgba(0,0,0,0.2); backdrop-filter:blur(10px);}
+  .metric-box{background:linear-gradient(135deg, var(--primary), var(--secondary)); color:white; padding:16px; border-radius:12px; text-align:center; box-shadow:0 4px 16px rgba(26,35,126,0.3);}
+  .metric-value{font-size:28px; font-weight:700; margin-bottom:6px;}
+  .metric-label{font-size:13px; opacity:0.9;}
+  .chart-container{height:220px; position:relative;}
+  .select-bus { margin-bottom:12px; }
+  .bus-card { border-radius:16px; background:var(--card); border:1px solid var(--border); box-shadow:0 8px 24px rgba(0,0,0,0.2); padding:20px; backdrop-filter:blur(10px); }
+  .badge-status { font-weight:700; padding:8px 12px; border-radius:20px; }
+  .status-on { background: var(--success); color: white; }
+  .status-del { background: var(--warning); color: white; }
+  .left-col { width:62%; }
+  .right-col { width:38%; }
+  .map-overlay { position: absolute; right:20px; top:20px; background:rgba(30,33,57,0.95); border:1px solid var(--border); color:var(--text); padding:16px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.3); backdrop-filter:blur(10px); }
+  .small-muted { font-size:13px; color:var(--text-muted); }
+  .table-status th, .table-status td { vertical-align: middle; color:var(--text); border-color:var(--border); }
+  .table-status th { background:var(--muted); }
+  .form-control, .form-select { background:var(--muted); border:1px solid var(--border); color:var(--text); }
+  .form-control:focus, .form-select:focus { background:var(--card-hover); border-color:var(--secondary); color:var(--text); box-shadow:0 0 0 0.2rem rgba(63,81,181,0.25); }
+  .btn-primary { background:linear-gradient(135deg, var(--primary), var(--secondary)); border:none; border-radius:8px; padding:8px 16px; font-weight:600; }
+  .btn-primary:hover { background:linear-gradient(135deg, var(--secondary), var(--primary)); transform:translateY(-1px); }
+  h4, h6 { color:var(--text); }
+  @media(max-width:1100px){ .d-flex-row{flex-direction:column!important} .left-col,.right-col{width:100%!important} .map-card{height:350px} }
+</style>
+</head>
+<body>
+<div class="container-main">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h4 class="mb-0" style="color:var(--accent);">🚌 Real-Time Public Transport Tracker</h4>
+      <div class="small-muted">Select a bus on the left map to view details and calculate fare & ETA.</div>
+    </div>
+    <div class="text-end small-muted">
+      
+    </div>
+  </div>
+
+  <div class="d-flex gap-3 d-flex-row">
+    <!-- LEFT -->
+    <div class="left-col">
+      <div class="map-card position-relative">
+        <div id="map"></div>
+        <div class="map-overlay">
+          <div style="font-weight:700;color:var(--blue)">Live Vehicle • <span id="overlayBus">12A</span></div>
+          <div class="small-muted" id="overlayRoute">Route: Station → Market → College</div>
+          <div style="margin-top:8px;font-size:13px">ETA: <strong id="overlayETA">3 min</strong> • Speed: <span id="overlaySpeed">18 km/h</span> • Stops left: <span id="overlayStops">4</span></div>
+        </div>
+      </div>
+
+      <div class="mt-3 bus-card">
+        <div class="mb-2 d-flex align-items-center justify-content-between">
+          <div>
+            <label class="form-label mb-0">Select Bus</label>
+            <select id="busSelect" class="form-select select-bus" aria-label="Select Bus">
+              <option value="12A" selected>Bus 12A • Connaught Place → AIIMS</option>
+              <option value="5B">Bus 5B • Red Fort → Karol Bagh</option>
+              <option value="9C">Bus 9C • Lajpat Nagar → Nehru Place</option>
+              <option value="15D">Bus 15D • Dwarka → Rajouri Garden</option>
+              <option value="34A">Bus 34A • Rohini → Pitampura</option>
+              <option value="AUTO33">Auto 33 • Khan Market → Lodhi Colony</option>
+            </select>
+          </div>
+          <div class="text-end small-muted">
+            <div><strong>Mode:</strong> Live</div>
+            <div><span class="badge badge-status status-on">128 vehicles</span></div>
+          </div>
+        </div>
+
+        <div class="row gx-3">
+          <div class="col-md-6 mb-2">
+            <div class="small-muted">Vehicle ID</div>
+            <div id="vId" style="font-weight:700">12A</div>
+          </div>
+          <div class="col-md-6 mb-2">
+            <div class="small-muted">Running Since</div>
+            <div id="vTime" style="font-weight:700">06:10 AM</div>
+          </div>
+          <div class="col-md-6 mb-2">
+            <div class="small-muted">Origin → Destination</div>
+            <div id="vRoute" style="font-weight:700">Station → College</div>
+          </div>
+          <div class="col-md-6 mb-2">
+            <div class="small-muted">Current Status</div>
+            <div id="vStatus"><span class="badge-status status-on">On Route</span></div>
+          </div>
+          <div class="col-md-6 mb-2">
+            <div class="small-muted">Current Speed</div>
+            <div id="vSpeed" style="font-weight:700">18 km/h</div>
+          </div>
+          <div class="col-md-6 mb-2">
+            <div class="small-muted">Distance to Stop</div>
+            <div id="vDist" style="font-weight:700">0.6 km</div>
+          </div>
+          <div class="col-12 mt-2">
+            <div class="small-muted">Driver Info</div>
+            <div id="vDriver" style="font-weight:700">Ramesh • Phone: 98xxxxxx45</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right-col">
+      <div class="bus-card mb-3">
+        <h6 style="color:var(--blue);font-weight:700">User / Passenger Profile</h6>
+        <div class="small-muted">Enter trip details to get fare & ETA</div>
+        <div class="mt-2">
+          <label class="form-label small-muted mb-1">From</label>
+          <select id="fromInput" class="form-select form-select-sm">
+            <option value="">Select origin...</option>
+            <option value="Connaught Place">Connaught Place</option>
+            <option value="India Gate">India Gate</option>
+            <option value="Khan Market">Khan Market</option>
+            <option value="AIIMS">AIIMS</option>
+            <option value="Red Fort">Red Fort</option>
+            <option value="Chandni Chowk">Chandni Chowk</option>
+            <option value="New Delhi Station">New Delhi Station</option>
+            <option value="Karol Bagh">Karol Bagh</option>
+            <option value="Lajpat Nagar">Lajpat Nagar</option>
+            <option value="Nehru Place">Nehru Place</option>
+            <option value="Dwarka Sector 21">Dwarka Sector 21</option>
+            <option value="Rajouri Garden">Rajouri Garden</option>
+            <option value="Rohini Sector 3">Rohini Sector 3</option>
+            <option value="Pitampura Metro">Pitampura Metro</option>
+          </select>
+        </div>
+        <div class="mt-2">
+          <label class="form-label small-muted mb-1">To</label>
+          <select id="toInput" class="form-select form-select-sm">
+            <option value="">Select destination...</option>
+            <option value="Connaught Place">Connaught Place</option>
+            <option value="India Gate">India Gate</option>
+            <option value="Khan Market">Khan Market</option>
+            <option value="AIIMS">AIIMS</option>
+            <option value="Red Fort">Red Fort</option>
+            <option value="Chandni Chowk">Chandni Chowk</option>
+            <option value="New Delhi Station">New Delhi Station</option>
+            <option value="Karol Bagh">Karol Bagh</option>
+            <option value="Lajpat Nagar">Lajpat Nagar</option>
+            <option value="Nehru Place">Nehru Place</option>
+            <option value="Dwarka Sector 21">Dwarka Sector 21</option>
+            <option value="Rajouri Garden">Rajouri Garden</option>
+            <option value="Rohini Sector 3">Rohini Sector 3</option>
+            <option value="Pitampura Metro">Pitampura Metro</option>
+          </select>
+        </div>
+        <div class="mt-2 d-flex gap-2">
+          <button id="calcBtn" class="btn btn-primary btn-sm">Calculate Fare & ETA</button>
+        </div>
+
+        <hr />
+
+        <div>
+          <div class="small-muted">Chosen Bus</div>
+          <div id="userBus" style="font-weight:700">12A • Station → College</div>
+          <div class="small-muted mt-2">Fare Estimate</div>
+          <div id="fare" style="font-weight:700">₹ 18</div>
+          <div class="small-muted mt-2">Distance</div>
+          <div id="distance" style="font-weight:700">0.6 km</div>
+          <div class="small-muted mt-2">Estimated Arrival</div>
+          <div id="userETA" style="font-weight:700">3 min</div>
+        </div>
+      </div>
+
+      <!-- Real-time Analytics -->
+      <div class="analytics-card">
+        <h6 style="color:var(--blue);font-weight:700">Real-time Analytics</h6>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <div class="metric-box">
+              <div class="metric-value" id="totalVehicles">128</div>
+              <div class="metric-label">Active Vehicles</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="metric-box">
+              <div class="metric-value" id="avgSpeed">19</div>
+              <div class="metric-label">Avg Speed (km/h)</div>
+            </div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="speedChart"></canvas>
+        </div>
+      </div>
+
+      <div class="bus-card">
+        <h6 style="color:var(--blue);font-weight:700">Vehicle Status (Live)</h6>
+        <div class="small-muted">Real-time list of vehicles & status</div>
+        <div class="table-responsive mt-2">
+          <table class="table table-sm table-status mb-0">
+            <thead>
+              <tr><th>Vehicle</th><th>Route</th><th>ETA</th><th>Status</th></tr>
+            </thead>
+            <tbody id="statusTable">
+              <tr>
+                <td>12A</td>
+                <td>Connaught Place → AIIMS</td>
+                <td>3 min</td>
+                <td><span class="badge-status status-on">On Route</span></td>
+              </tr>
+              <tr>
+                <td>5B</td>
+                <td>Red Fort → Karol Bagh</td>
+                <td>10 min</td>
+                <td><span class="status-del">Delayed</span></td>
+              </tr>
+              <tr>
+                <td>9C</td>
+                <td>Lajpat Nagar → Nehru Place</td>
+                <td>5 min</td>
+                <td><span class="badge-status status-on">On Route</span></td>
+              </tr>
+              <tr>
+                <td>15D</td>
+                <td>Dwarka → Rajouri Garden</td>
+                <td>7 min</td>
+                <td><span class="badge-status status-on">On Route</span></td>
+              </tr>
+              <tr>
+                <td>34A</td>
+                <td>Rohini → Pitampura</td>
+                <td>4 min</td>
+                <td><span class="badge-status status-on">On Route</span></td>
+              </tr>
+              <tr>
+                <td>Auto 33</td>
+                <td>Khan Market → Lodhi Colony</td>
+                <td>2 min</td>
+                <td><span class="badge-status status-on">Shared</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // Enhanced bus data with realistic Delhi routes and stops
+  const buses = {
+    "12A": { 
+      id:"12A", time:"06:10 AM", route:"Connaught Place → AIIMS", status:"On Route", 
+      speed:"18 km/h", dist:"0.6 km", driver:"Ramesh • 98xxxxxx45", eta:"3 min",
+      lat: 28.6139, lng: 77.2090, color: "#0b74d1", passengers: 24, capacity: 40,
+      stops: ["Connaught Place", "Janpath", "India Gate", "Khan Market", "Lodi Road", "AIIMS"],
+      currentStop: 3, nextStop: "Lodi Road"
+    },
+    "5B": { 
+      id:"5B", time:"05:40 AM", route:"Red Fort → Karol Bagh", status:"Delayed", 
+      speed:"10 km/h", dist:"3.2 km", driver:"Anil • 98xxxxxx11", eta:"10 min",
+      lat: 28.6289, lng: 77.2065, color: "#ff6f00", passengers: 18, capacity: 35,
+      stops: ["Red Fort", "Chandni Chowk", "New Delhi Station", "Paharganj", "Karol Bagh"],
+      currentStop: 2, nextStop: "Paharganj"
+    },
+    "9C": { 
+      id:"9C", time:"06:00 AM", route:"Lajpat Nagar → Nehru Place", status:"On Route", 
+      speed:"22 km/h", dist:"1.1 km", driver:"Suresh • 98xxxxxx22", eta:"5 min",
+      lat: 28.6189, lng: 77.2190, color: "#00a08a", passengers: 31, capacity: 40,
+      stops: ["Lajpat Nagar", "Defence Colony", "Moolchand", "Kailash Colony", "Nehru Place"],
+      currentStop: 1, nextStop: "Moolchand"
+    },
+    "15D": { 
+      id:"15D", time:"06:25 AM", route:"Dwarka → Rajouri Garden", status:"On Route", 
+      speed:"25 km/h", dist:"2.1 km", driver:"Priya • 98xxxxxx67", eta:"7 min",
+      lat: 28.5921, lng: 77.0460, color: "#e74c3c", passengers: 29, capacity: 45,
+      stops: ["Dwarka Sector 21", "Dwarka Mor", "Uttam Nagar", "Janakpuri", "Tilak Nagar", "Rajouri Garden"],
+      currentStop: 4, nextStop: "Tilak Nagar"
+    },
+    "34A": { 
+      id:"34A", time:"06:05 AM", route:"Rohini → Pitampura", status:"On Route", 
+      speed:"20 km/h", dist:"1.8 km", driver:"Amit • 98xxxxxx89", eta:"4 min",
+      lat: 28.7041, lng: 77.1025, color: "#9b59b6", passengers: 22, capacity: 40,
+      stops: ["Rohini Sector 3", "Rohini East", "Pitampura TV Tower", "Kohat Enclave", "Pitampura Metro"],
+      currentStop: 2, nextStop: "Kohat Enclave"
+    },
+    "AUTO33": { 
+      id:"AUTO33", time:"06:18 AM", route:"Khan Market → Lodhi Colony", status:"Shared", 
+      speed:"15 km/h", dist:"0.4 km", driver:"Vikram • 98xxxxxx33", eta:"2 min",
+      lat: 28.6089, lng: 77.2140, color: "#8e44ad", passengers: 3, capacity: 6,
+      stops: ["Khan Market", "Lodhi Road", "Lodhi Colony"],
+      currentStop: 0, nextStop: "Lodhi Road"
+    }
+  };
+
+  // Bus stops with coordinates and arrival times
+  const busStops = {
+    "Connaught Place": { lat: 28.6315, lng: 77.2167, zone: "Central Delhi" },
+    "Janpath": { lat: 28.6219, lng: 77.2186, zone: "Central Delhi" },
+    "India Gate": { lat: 28.6129, lng: 77.2295, zone: "Central Delhi" },
+    "Khan Market": { lat: 28.5984, lng: 77.2319, zone: "Central Delhi" },
+    "Lodi Road": { lat: 28.5918, lng: 77.2273, zone: "Central Delhi" },
+    "AIIMS": { lat: 28.5672, lng: 77.2100, zone: "South Delhi" },
+    "Red Fort": { lat: 28.6562, lng: 77.2410, zone: "Old Delhi" },
+    "Chandni Chowk": { lat: 28.6506, lng: 77.2303, zone: "Old Delhi" },
+    "New Delhi Station": { lat: 28.6431, lng: 77.2197, zone: "Central Delhi" },
+    "Paharganj": { lat: 28.6414, lng: 77.2085, zone: "Central Delhi" },
+    "Karol Bagh": { lat: 28.6519, lng: 77.1909, zone: "Central Delhi" },
+    "Lajpat Nagar": { lat: 28.5678, lng: 77.2436, zone: "South Delhi" },
+    "Defence Colony": { lat: 28.5729, lng: 77.2311, zone: "South Delhi" },
+    "Moolchand": { lat: 28.5804, lng: 77.2324, zone: "South Delhi" },
+    "Kailash Colony": { lat: 28.5485, lng: 77.2426, zone: "South Delhi" },
+    "Nehru Place": { lat: 28.5494, lng: 77.2519, zone: "South Delhi" },
+    "Dwarka Sector 21": { lat: 28.5921, lng: 77.0460, zone: "West Delhi" },
+    "Dwarka Mor": { lat: 28.5947, lng: 77.0636, zone: "West Delhi" },
+    "Uttam Nagar": { lat: 28.6219, lng: 77.0688, zone: "West Delhi" },
+    "Janakpuri": { lat: 28.6219, lng: 77.0855, zone: "West Delhi" },
+    "Tilak Nagar": { lat: 28.6397, lng: 77.0955, zone: "West Delhi" },
+    "Rajouri Garden": { lat: 28.6469, lng: 77.1200, zone: "West Delhi" },
+    "Rohini Sector 3": { lat: 28.7041, lng: 77.1025, zone: "North Delhi" },
+    "Rohini East": { lat: 28.7196, lng: 77.1176, zone: "North Delhi" },
+    "Pitampura TV Tower": { lat: 28.6918, lng: 77.1311, zone: "North Delhi" },
+    "Kohat Enclave": { lat: 28.6844, lng: 77.1411, zone: "North Delhi" },
+    "Pitampura Metro": { lat: 28.6844, lng: 77.1311, zone: "North Delhi" },
+    "Lodhi Colony": { lat: 28.5918, lng: 77.2373, zone: "Central Delhi" }
+  };
+
+  // Map initialization
+  let map, busMarkers = {}, stopMarkers = {}, speedChart;
+  
+  function initMap() {
+    try {
+      if (typeof L === 'undefined') {
+        console.error('Leaflet library not loaded');
+        createFallbackMap();
+        return;
+      }
+
+      map = L.map('map').setView([28.6139, 77.2090], 13);
+      
+      // Multiple satellite providers for reliability
+      const satelliteProviders = [
+        {
+          url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+          attribution: '© Google Satellite'
+        },
+        {
+          url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+          attribution: '© Esri Satellite'
+        },
+        {
+          url: 'https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw',
+          attribution: '© Mapbox Satellite'
+        }
+      ];
+      
+      let satelliteLoaded = false;
+      
+      // Try Google Satellite first (most reliable)
+      const googleSatellite = L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        attribution: '© Google Satellite',
+        maxZoom: 20,
+        subdomains: ['0', '1', '2', '3']
+      });
+      
+      googleSatellite.on('tileload', function() {
+        if (!satelliteLoaded) {
+          satelliteLoaded = true;
+          console.log('Google Satellite loaded successfully');
+        }
+      });
+      
+      googleSatellite.on('tileerror', function() {
+        console.warn('Google Satellite failed, trying Esri...');
+        // Try Esri satellite
+        const esriSatellite = L.tileLayer(satelliteProviders[1].url, {
+          attribution: satelliteProviders[1].attribution,
+          maxZoom: 19
+        });
+        
+        esriSatellite.on('tileerror', function() {
+          console.warn('Esri Satellite failed, using OpenStreetMap...');
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+          }).addTo(map);
+        });
+        
+        esriSatellite.addTo(map);
+      });
+      
+      googleSatellite.addTo(map);
+      
+      // Add roads overlay for better navigation
+      const roadsOverlay = L.tileLayer('https://mt{s}.google.com/vt/lyrs=h&x={x}&y={y}&z={z}', {
+        attribution: '© Google Roads',
+        maxZoom: 20,
+        opacity: 0.7,
+        subdomains: ['0', '1', '2', '3']
+      });
+      
+      roadsOverlay.addTo(map);
+      
+      // Add layer control to switch between views
+      const baseLayers = {
+        "🛰️ Satellite": googleSatellite,
+        "🗺️ Street Map": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 19
+        })
+      };
+      
+      const overlayLayers = {
+        "🛣️ Roads": roadsOverlay
+      };
+      
+      L.control.layers(baseLayers, overlayLayers, {
+        position: 'topright',
+        collapsed: false
+      }).addTo(map);
+
+      // Add bus stops with enhanced styling
+      Object.keys(busStops).forEach(stopName => {
+        const stop = busStops[stopName];
+        const marker = L.circleMarker([stop.lat, stop.lng], {
+          color: '#ffffff',
+          fillColor: '#1a237e',
+          fillOpacity: 0.9,
+          radius: 6,
+          weight: 3
+        }).addTo(map);
+        
+        marker.bindPopup(`
+          <div style="font-weight:bold; color:#1a237e; font-size:14px">🚏 ${stopName}</div>
+          <div style="color:#666; font-size:12px; margin-top:4px">${stop.zone}</div>
+        `);
+        
+        stopMarkers[stopName] = marker;
+      });
+
+      // Add enhanced bus markers
+      Object.keys(buses).forEach(busId => {
+        const bus = buses[busId];
+        const marker = L.circleMarker([bus.lat, bus.lng], {
+          color: '#ffffff',
+          fillColor: bus.color,
+          fillOpacity: 1,
+          radius: 12,
+          weight: 4
+        }).addTo(map);
+        
+        const nextStopInfo = bus.nextStop ? `<div style="margin:6px 0;">🎯 Next Stop: <strong>${bus.nextStop}</strong></div>` : '';
+        const stopsLeft = bus.stops.length - bus.currentStop - 1;
+        const occupancyPercent = Math.round((bus.passengers / bus.capacity) * 100);
+        
+        marker.bindPopup(`
+          <div style="font-weight:bold; color:${bus.color}; font-size:18px; margin-bottom:8px;">🚌 ${bus.id}</div>
+          <div style="margin:4px 0; font-size:14px;">${bus.route}</div>
+          <div style="margin:6px 0;">⚡ Speed: ${bus.speed} • ⏱️ ETA: ${bus.eta}</div>
+          <div style="margin:6px 0;">👥 Passengers: ${bus.passengers}/${bus.capacity} (${occupancyPercent}%)</div>
+          ${nextStopInfo}
+          <div style="color:#666; font-size:12px; margin-top:6px;">📍 Stops remaining: ${stopsLeft}</div>
+        `);
+        
+        busMarkers[busId] = marker;
+      });
+
+      // Add route lines with stops
+      addRouteLines();
+      
+      // Force map resize after initialization
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 200);
+      
+    } catch (error) {
+      console.error('Map initialization failed:', error);
+      createFallbackMap();
+    }
+  }
+
+  // Create satellite-style fallback map
+  function createFallbackMap() {
+    const mapContainer = document.getElementById('map');
+    mapContainer.innerHTML = `
+      <div style="position:relative; width:100%; height:100%; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><defs><pattern id="satellite" patternUnits="userSpaceOnUse" width="50" height="50"><rect width="50" height="50" fill="%232d5016"/><circle cx="10" cy="10" r="2" fill="%234a7c59"/><circle cx="30" cy="25" r="3" fill="%233e6b47"/><circle cx="45" cy="40" r="1.5" fill="%235a8a6b"/><rect x="15" y="20" width="8" height="2" fill="%23666"/><rect x="35" y="35" width="6" height="1.5" fill="%23777"/></pattern></defs><rect width="100%" height="100%" fill="url(%23satellite)"/></svg>') center/cover; overflow:hidden;">
+        <div style="position:absolute; top:15px; left:15px; background:rgba(0,0,0,0.8); color:white; padding:12px; border-radius:8px; font-size:12px;">
+          <strong>🛰️ Delhi Satellite View</strong><br>
+          <span style="color:#ccc;">Real-time Bus Tracking</span>
+        </div>
+        <div id="fallbackBuses" style="position:relative; width:100%; height:100%;"></div>
+      </div>
+    `;
+    
+    // Add bus positions as CSS elements
+    const busContainer = document.getElementById('fallbackBuses');
+    Object.keys(buses).forEach((busId, index) => {
+      const bus = buses[busId];
+      const busElement = document.createElement('div');
+      busElement.id = `fallback-bus-${busId}`;
+      busElement.style.cssText = `
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background: ${bus.color};
+        border: 3px solid white;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        left: ${20 + (index * 80)}px;
+        top: ${50 + (index * 60)}px;
+        z-index: 10;
+      `;
+      busElement.title = `${bus.id} - ${bus.route}`;
+      
+      busElement.addEventListener('click', () => {
+        alert(`Bus ${bus.id}\nRoute: ${bus.route}\nSpeed: ${bus.speed}\nNext Stop: ${bus.nextStop}\nPassengers: ${bus.passengers}/${bus.capacity}`);
+      });
+      
+      busContainer.appendChild(busElement);
+      busMarkers[busId] = busElement;
+    });
+    
+    // Add route lines as CSS elements
+    Object.keys(buses).forEach((busId, index) => {
+      const routeLine = document.createElement('div');
+      routeLine.style.cssText = `
+        position: absolute;
+        width: 200px;
+        height: 3px;
+        background: ${buses[busId].color};
+        opacity: 0.6;
+        left: ${40 + (index * 80)}px;
+        top: ${60 + (index * 60)}px;
+        border-radius: 2px;
+      `;
+      busContainer.appendChild(routeLine);
+    });
+  }
+
+  function addRouteLines() {
+    // Create enhanced route lines with glow effect
+    Object.keys(buses).forEach(busId => {
+      const bus = buses[busId];
+      const routePoints = bus.stops.map(stopName => {
+        const stop = busStops[stopName];
+        return [stop.lat, stop.lng];
+      });
+      
+      // Add glow effect with shadow line
+      L.polyline(routePoints, { 
+        color: '#ffffff', 
+        weight: 8, 
+        opacity: 0.3
+      }).addTo(map);
+      
+      // Main route line
+      L.polyline(routePoints, { 
+        color: bus.color, 
+        weight: 5, 
+        opacity: 0.9,
+        dashArray: busId === 'AUTO33' ? '15, 8' : null // Dashed line for auto
+      }).addTo(map);
+    });
+  }
+
+  // Initialize speed chart
+  function initSpeedChart() {
+    try {
+      if (typeof Chart === 'undefined') {
+        console.error('Chart.js library not loaded');
+        document.getElementById('speedChart').style.display = 'none';
+        return;
+      }
+
+      const ctx = document.getElementById('speedChart').getContext('2d');
+      speedChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['10:00', '10:05', '10:10', '10:15', '10:20', '10:25', '10:30'],
+          datasets: [{
+            label: 'Average Speed',
+            data: [15, 18, 22, 19, 21, 17, 19],
+            borderColor: '#0b74d1',
+            backgroundColor: 'rgba(11, 116, 209, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 30,
+              grid: { color: 'rgba(0,0,0,0.1)' }
+            },
+            x: {
+              grid: { color: 'rgba(0,0,0,0.1)' }
+            }
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Chart initialization failed:', error);
+      document.getElementById('speedChart').style.display = 'none';
+    }
+  }
+
+  // DOM elements
+  const busSelect = document.getElementById('busSelect');
+  const overlayBus = document.getElementById('overlayBus');
+  const overlayRoute = document.getElementById('overlayRoute');
+  const overlayETA = document.getElementById('overlayETA');
+  const overlaySpeed = document.getElementById('overlaySpeed');
+  const overlayStops = document.getElementById('overlayStops');
+  const vId = document.getElementById('vId');
+  const vTime = document.getElementById('vTime');
+  const vRoute = document.getElementById('vRoute');
+  const vStatus = document.getElementById('vStatus');
+  const vSpeed = document.getElementById('vSpeed');
+  const vDist = document.getElementById('vDist');
+  const vDriver = document.getElementById('vDriver');
+  const userBus = document.getElementById('userBus');
+  const fare = document.getElementById('fare');
+  const distance = document.getElementById('distance');
+  const userETA = document.getElementById('userETA');
+  const fromInput = document.getElementById('fromInput');
+  const toInput = document.getElementById('toInput');
+  const calcBtn = document.getElementById('calcBtn');
+  const totalVehicles = document.getElementById('totalVehicles');
+  const avgSpeed = document.getElementById('avgSpeed');
+
+  function updateView(key) {
+    const b = buses[key];
+    const stopsLeft = b.stops.length - b.currentStop - 1;
+    
+    // Update overlay
+    overlayBus.textContent = b.id;
+    overlayRoute.textContent = "Route: " + b.route;
+    overlayETA.textContent = b.eta;
+    overlaySpeed.textContent = b.speed;
+    overlayStops.textContent = stopsLeft;
+    
+    // Update vehicle details
+    vId.textContent = b.id;
+    vTime.textContent = b.time;
+    vRoute.textContent = b.route;
+    vStatus.innerHTML = b.status === "Delayed" ? '<span class="status-del">Delayed</span>' : '<span class="badge-status status-on">'+b.status+'</span>';
+    vSpeed.textContent = b.speed;
+    vDist.textContent = b.dist;
+    vDriver.textContent = b.driver;
+    
+    // Update user section
+    userBus.textContent = b.id + " • " + b.route;
+    userETA.textContent = b.eta;
+    distance.textContent = b.dist;
+    const numDist = parseFloat(b.dist);
+    fare.textContent = "₹ " + (10 + Math.round(numDist*8));
+
+    // Highlight selected bus on map
+    Object.keys(busMarkers).forEach(busId => {
+      const marker = busMarkers[busId];
+      if (busId === key) {
+        marker.setRadius(15);
+        marker.openPopup();
+        map.setView([buses[busId].lat, buses[busId].lng], 14);
+      } else {
+        marker.setRadius(10);
+        marker.closePopup();
+      }
+    });
+  }
+
+  // Real-time simulation
+  function simulateRealTimeData() {
+    // Update bus positions slightly
+    Object.keys(buses).forEach(busId => {
+      const bus = buses[busId];
+      const variation = 0.001;
+      bus.lat += (Math.random() - 0.5) * variation;
+      bus.lng += (Math.random() - 0.5) * variation;
+      
+      // Update marker position
+      if (busMarkers[busId]) {
+        busMarkers[busId].setLatLng([bus.lat, bus.lng]);
+      }
+      
+      // Update speed randomly
+      const currentSpeed = parseInt(bus.speed);
+      const newSpeed = Math.max(5, currentSpeed + (Math.random() - 0.5) * 4);
+      bus.speed = Math.round(newSpeed) + " km/h";
+      
+      // Update passenger count
+      bus.passengers = Math.max(0, Math.min(bus.capacity, 
+        bus.passengers + Math.round((Math.random() - 0.5) * 3)));
+    });
+
+    // Update analytics
+    const speeds = Object.values(buses).map(b => parseInt(b.speed));
+    const avgSpeedValue = Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length);
+    avgSpeed.textContent = avgSpeedValue;
+    
+    const totalPassengers = Object.values(buses).reduce((sum, b) => sum + b.passengers, 0);
+    totalVehicles.textContent = Object.keys(buses).length + Math.round(Math.random() * 5);
+
+    // Update chart data
+    if (speedChart) {
+      const newData = speedChart.data.datasets[0].data;
+      newData.shift();
+      newData.push(avgSpeedValue);
+      speedChart.update('none');
+    }
+
+    // Update current view if needed
+    const currentBus = busSelect.value;
+    if (currentBus) {
+      updateView(currentBus);
+    }
+  }
+
+  // Event listeners
+  busSelect.addEventListener('change', (e) => {
+    updateView(e.target.value);
+  });
+
+  // Calculate fare and ETA based on selected stops
+  function calculateTripDetails(from, to) {
+    if (!from || !to) return null;
+    
+    // Find best bus route
+    let bestBus = null;
+    let minTransfers = Infinity;
+    
+    Object.keys(buses).forEach(busId => {
+      const bus = buses[busId];
+      const fromIndex = bus.stops.indexOf(from);
+      const toIndex = bus.stops.indexOf(to);
+      
+      if (fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex) {
+        const transfers = 0; // Direct route
+        if (transfers < minTransfers) {
+          minTransfers = transfers;
+          bestBus = bus;
+        }
+      }
+    });
+    
+    if (bestBus) {
+      const fromIndex = bestBus.stops.indexOf(from);
+      const toIndex = bestBus.stops.indexOf(to);
+      const stopDistance = toIndex - fromIndex;
+      const estimatedDistance = stopDistance * 1.2; // km per stop average
+      const estimatedTime = Math.ceil(stopDistance * 3); // 3 min per stop
+      const fare = 10 + (stopDistance * 5); // Base fare + per stop
+      
+      return {
+        bus: bestBus,
+        distance: estimatedDistance.toFixed(1) + " km",
+        time: estimatedTime + " min",
+        fare: "₹ " + fare,
+        stops: stopDistance
+      };
+    }
+    
+    return null;
+  }
+
+  calcBtn.addEventListener('click', () => {
+    const from = fromInput.value;
+    const to = toInput.value;
+    
+    if (!from || !to) {
+      alert('Please select both origin and destination');
+      return;
+    }
+    
+    const tripDetails = calculateTripDetails(from, to);
+    
+    if (tripDetails) {
+      userBus.textContent = tripDetails.bus.id + " • " + tripDetails.bus.route;
+      distance.textContent = tripDetails.distance;
+      userETA.textContent = tripDetails.time;
+      fare.textContent = tripDetails.fare;
+    } else {
+      userBus.textContent = "No direct route found";
+      distance.textContent = "N/A";
+      userETA.textContent = "N/A";
+      fare.textContent = "N/A";
+    }
+  });
+
+  // Wait for all external libraries to load
+  function waitForLibraries() {
+    let attempts = 0;
+    const maxAttempts = 50;
+    
+    const checkLibraries = () => {
+      attempts++;
+      
+      if (typeof L !== 'undefined' && typeof Chart !== 'undefined') {
+        // Libraries loaded successfully
+        initMap();
+        initSpeedChart();
+        updateView(busSelect.value);
+        
+        // Start real-time simulation
+        setInterval(simulateRealTimeData, 3000);
+      } else if (attempts < maxAttempts) {
+        // Keep waiting
+        setTimeout(checkLibraries, 100);
+      } else {
+        // Libraries failed to load, use fallback
+        console.warn('External libraries failed to load, using fallback');
+        createFallbackMap();
+        updateView(busSelect.value);
+        
+        // Start real-time simulation
+        setInterval(simulateRealTimeData, 3000);
+      }
+    };
+    
+    checkLibraries();
+  }
+
+  // Initialize everything when page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    waitForLibraries();
+  });
+</script>
+</body>
+</html>

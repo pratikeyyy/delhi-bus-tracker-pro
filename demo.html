@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚌 Bus Tracker - Real-Time Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+    <style>
+        :root {
+            --primary: #1a237e;
+            --secondary: #3f51b5;
+            --accent: #ff4081;
+            --success: #00c853;
+            --warning: #ff9800;
+            --bg: #0a0e27;
+            --card: #1e2139;
+            --card-hover: #252847;
+            --muted: #2a2d47;
+            --text: #ffffff;
+            --text-muted: #b0bec5;
+            --border: #3a3f5c;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1d3a 50%, #2a2d47 100%);
+            color: var(--text);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container-main { max-width: 1300px; margin: 0 auto; }
+        .map-card { height: 450px; border-radius: 16px; overflow: hidden; border: 2px solid var(--border); position: relative; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+        #map { height: 450px; width: 100%; z-index: 1; border-radius: 16px; }
+        .analytics-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); backdrop-filter: blur(10px); }
+        .metric-box { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 4px 16px rgba(26,35,126,0.3); }
+        .metric-value { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+        .metric-label { font-size: 13px; opacity: 0.9; }
+        .chart-container { height: 220px; position: relative; }
+        .bus-card { border-radius: 16px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,0.2); padding: 20px; backdrop-filter: blur(10px); }
+        .badge-status { font-weight: 700; padding: 8px 12px; border-radius: 20px; }
+        .status-on { background: var(--success); color: white; }
+        .status-del { background: var(--warning); color: white; }
+        .left-col { width: 62%; }
+        .right-col { width: 38%; }
+        .map-overlay { position: absolute; right: 20px; top: 20px; background: rgba(30,33,57,0.95); border: 1px solid var(--border); color: var(--text); padding: 16px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); backdrop-filter: blur(10px); z-index: 1000; }
+        .small-muted { font-size: 13px; color: var(--text-muted); }
+        .header-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+        .btn-primary { background: var(--primary); border: none; }
+        .btn-primary:hover { background: var(--secondary); }
+        .form-control, .form-select { background: var(--muted); border: 1px solid var(--border); color: var(--text); }
+        .form-control:focus, .form-select:focus { background: var(--muted); border-color: var(--secondary); color: var(--text); box-shadow: 0 0 0 0.2rem rgba(63,81,181,0.25); }
+        .live-indicator { display: inline-block; width: 8px; height: 8px; background: var(--success); border-radius: 50%; margin-right: 8px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="container-main">
+        <!-- Header -->
+        <div class="header-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-1">🚌 Bus Tracker System</h1>
+                    <p class="text-muted mb-0">Real-time GPS tracking, ETA calculation & multi-language support</p>
+                </div>
+                <div class="text-end">
+                    <div class="small-muted">
+                        <span class="live-indicator"></span>Live Demo
+                    </div>
+                    <div class="small-muted">Last updated: <span id="lastUpdate"></span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-3">
+            <!-- Left Column -->
+            <div class="left-col">
+                <!-- Map Section -->
+                <div class="map-card">
+                    <div id="map"></div>
+                    <div class="map-overlay">
+                        <h6 class="mb-2">🚍 Active Buses</h6>
+                        <div class="small-muted">
+                            <div>Route 12A: <span class="text-success">Online</span></div>
+                            <div>Route 5B: <span class="text-success">Online</span></div>
+                            <div>Route 9C: <span class="text-warning">Maintenance</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bus Details -->
+                <div class="analytics-card mt-3">
+                    <h5 class="mb-3">🚌 Bus Details</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <select class="form-select mb-3" id="busSelect">
+                                <option value="bus12a">Bus 12A - Station → Market → College</option>
+                                <option value="bus5b">Bus 5B - Depot → Hospital → Market</option>
+                                <option value="bus9c">Bus 9C - Under Maintenance</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-primary" onclick="trackBus()">📍 Track Bus</button>
+                        </div>
+                    </div>
+                    
+                    <div class="bus-card" id="busDetails">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h6 class="mb-1">Bus 12A</h6>
+                                <div class="small-muted">Driver: Ramesh Kumar</div>
+                            </div>
+                            <span class="badge-status status-on">Online</span>
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="small-muted">Current Location</div>
+                                <div class="fw-bold">Market Square</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="small-muted">Next Stop</div>
+                                <div class="fw-bold">College Gate (3 min)</div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-6">
+                                <div class="small-muted">Speed</div>
+                                <div class="fw-bold">45 km/h</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="small-muted">Passengers</div>
+                                <div class="fw-bold">28/50</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="right-col">
+                <!-- Passenger Section -->
+                <div class="analytics-card">
+                    <h5 class="mb-3">👥 Passenger Services</h5>
+                    
+                    <!-- Stop Search -->
+                    <div class="mb-3">
+                        <label class="form-label">🔍 Find Bus Stop</label>
+                        <input type="text" class="form-control" placeholder="Search stops..." id="stopSearch">
+                    </div>
+                    
+                    <!-- Route Finder -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label">From</label>
+                            <select class="form-select">
+                                <option>Station</option>
+                                <option>Market</option>
+                                <option>College</option>
+                                <option>Hospital</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">To</label>
+                            <select class="form-select">
+                                <option>College</option>
+                                <option>Market</option>
+                                <option>Station</option>
+                                <option>Hospital</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary w-100 mb-3" onclick="findRoute()">🗺️ Find Route</button>
+                    
+                    <!-- ETA Display -->
+                    <div class="bus-card">
+                        <h6 class="mb-2">⏰ Next Arrivals</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Bus 12A</span>
+                            <span class="text-success fw-bold">3 min</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Bus 5B</span>
+                            <span class="text-warning fw-bold">12 min</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Bus 7C</span>
+                            <span class="text-muted">25 min</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics -->
+                <div class="analytics-card">
+                    <h5 class="mb-3">📊 System Status</h5>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <div class="metric-box">
+                                <div class="metric-value">15</div>
+                                <div class="metric-label">Active Buses</div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="metric-box">
+                                <div class="metric-value">342</div>
+                                <div class="metric-label">Passengers</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric-box">
+                                <div class="metric-value">98%</div>
+                                <div class="metric-label">On Time</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric-box">
+                                <div class="metric-value">24</div>
+                                <div class="metric-label">Routes</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SMS Commands -->
+                <div class="analytics-card">
+                    <h5 class="mb-3">📱 SMS Commands</h5>
+                    <div class="small-muted mb-2">Send SMS to: <strong>+1234567890</strong></div>
+                    <div class="small-muted">
+                        <div>• <code>ETA Station</code> - Get arrival times</div>
+                        <div>• <code>FARE Station TO College</code> - Calculate fare</div>
+                        <div>• <code>ROUTE Market TO Hospital</code> - Find routes</div>
+                        <div>• <code>HELP</code> - Get help message</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize map
+        let map = L.map('map').setView([28.6139, 77.2090], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Add bus markers
+        const buses = [
+            { id: 'bus12a', name: 'Bus 12A', lat: 28.6139, lng: 77.2090, status: 'online' },
+            { id: 'bus5b', name: 'Bus 5B', lat: 28.6200, lng: 77.2100, status: 'online' },
+            { id: 'bus9c', name: 'Bus 9C', lat: 28.6100, lng: 77.2050, status: 'maintenance' }
+        ];
+
+        buses.forEach(bus => {
+            const icon = L.divIcon({
+                html: `<div style="background: ${bus.status === 'online' ? '#00c853' : '#ff9800'}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">🚌 ${bus.name}</div>`,
+                className: 'bus-marker',
+                iconSize: [80, 30]
+            });
+            L.marker([bus.lat, bus.lng], { icon }).addTo(map);
+        });
+
+        // Add bus stops
+        const stops = [
+            { name: 'Station', lat: 28.6120, lng: 77.2070 },
+            { name: 'Market', lat: 28.6150, lng: 77.2100 },
+            { name: 'College', lat: 28.6180, lng: 77.2130 },
+            { name: 'Hospital', lat: 28.6200, lng: 77.2080 }
+        ];
+
+        stops.forEach(stop => {
+            L.marker([stop.lat, stop.lng])
+                .bindPopup(`<b>${stop.name}</b><br>Bus Stop`)
+                .addTo(map);
+        });
+
+        // Update timestamp
+        function updateTimestamp() {
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+        updateTimestamp();
+        setInterval(updateTimestamp, 1000);
+
+        // Functions
+        function trackBus() {
+            const busSelect = document.getElementById('busSelect');
+            const selectedBus = busSelect.value;
+            alert(`🚌 Now tracking ${busSelect.options[busSelect.selectedIndex].text}`);
+        }
+
+        function findRoute() {
+            alert('🗺️ Route found! Bus 12A: 15 min journey, ₹25 fare');
+        }
+
+        // Simulate real-time updates
+        setInterval(() => {
+            // Update bus positions slightly
+            buses.forEach(bus => {
+                if (bus.status === 'online') {
+                    bus.lat += (Math.random() - 0.5) * 0.001;
+                    bus.lng += (Math.random() - 0.5) * 0.001;
+                }
+            });
+        }, 5000);
+
+        console.log('🚌 Bus Tracker Demo loaded successfully!');
+        console.log('📊 Features: GPS tracking, ETA calculation, SMS support, Multi-language');
+        console.log('🔗 API Endpoints available at /api/*');
+    </script>
+</body>
+</html>

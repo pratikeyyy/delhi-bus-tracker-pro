@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "delhi-bus-tracker-pro",
+  "version": "1.2.0",
+  "description": "Advanced real-time GPS tracking system for Delhi Transport Corporation with PWA capabilities",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "build": "echo 'Build complete - static files ready'",
+    "seed": "node scripts/seedData.js",
+    "test": "jest",
+    "lint": "eslint .",
+    "deploy": "node deploy.js",
+    "docker:build": "docker build -t delhi-bus-tracker .",
+    "docker:run": "docker run -p 3000:3000 delhi-bus-tracker"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "mongoose": "^8.0.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "dotenv": "^16.3.1",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
+    "twilio": "^4.19.0",
+    "firebase-admin": "^12.0.0",
+    "redis": "^4.6.10",
+    "nodemailer": "^6.9.7",
+    "geolib": "^3.3.4",
+    "winston": "^3.11.0",
+    "compression": "^1.7.4",
+    "express-validator": "^7.0.1",
+    "passport": "^0.6.0",
+    "passport-jwt": "^4.0.1",
+    "passport-google-oauth20": "^2.0.0",
+    "passport-local": "^1.0.0",
+    "joi": "^17.11.0",
+    "ua-parser-js": "^1.0.37",
+    "i18next": "^23.7.6",
+    "i18next-fs-backend": "^2.3.1",
+    "leaflet": "^1.9.4",
+    "chart.js": "^4.4.0",
+    "crypto": "^1.0.1",
+    "serverless-http": "^3.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "eslint": "^8.55.0",
+    "prettier": "^3.1.0",
+    "cross-env": "^7.0.3"
+  },
+  "keywords": [
+    "bus-tracker",
+    "delhi-transport",
+    "pwa",
+    "real-time",
+    "gps-tracking",
+    "transit-app"
+  ],
+  "author": "Delhi Transport Corporation",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/delhi-transport/delhi-bus-tracker-pro.git"
+  },
+  "bugs": {
+    "url": "https://github.com/delhi-transport/delhi-bus-tracker-pro/issues"
+  },
+  "homepage": "https://delhi-bus-tracker-pro.vercel.app",
+  "browserslist": [
+    "defaults",
+    "not IE 11",
+    "not op_mini all"
+  ]
+}
