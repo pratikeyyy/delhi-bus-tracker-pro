@@ -207,7 +207,8 @@ app.get('/', (req, res) => {
     <div class="container">
         <div class="text-center mb-5">
             <h1 class="display-4">🚌 Delhi Bus Tracker Pro</h1>
-            <p class="lead">Advanced Real-Time GPS Tracking System</p>
+            <p class="lead">Demo bus tracker for Delhi — simulated data, not live DTC feeds</p>
+            <p><span class="badge bg-warning text-dark">Demo data — simulated</span> Bus positions, ETAs and driver names shown by this app are simulated sample data for demonstration only.</p>
             <p class="text-muted">Server running on port ${process.env.PORT || 3000}</p>
         </div>
         <div class="text-center mb-4">
@@ -232,7 +233,7 @@ app.get('/', (req, res) => {
                 <div class="card p-4 mb-3">
                     <h4>🚀 Features</h4>
                     <ul class="list-unstyled">
-                        <li>🚌 Real-time GPS tracking</li>
+                        <li>🚌 Simulated GPS tracking (demo data)</li>
                         <li>📱 Progressive Web App</li>
                         <li>🌐 Multi-language support</li>
                         <li>🔔 Smart notifications</li>
@@ -330,7 +331,7 @@ const PORT = process.env.PORT || 3000;
 // When running on Netlify (serverless), this module is imported by
 // `netlify/functions/server.js`, so we must avoid binding to a port.
 if (require.main === module) {
-    server.listen(PORT, () => {
+    server.listen(PORT, '0.0.0.0', () => {
         console.log(`\n🚀 Delhi Bus Tracker Pro Server Started!`);
         console.log(`📍 Server running on: http://localhost:${PORT}`);
         console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);

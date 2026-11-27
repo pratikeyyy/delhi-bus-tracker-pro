@@ -132,3 +132,10 @@ docker-compose*.yml
 # Database
 *.sqlite
 *.db
+
+# Secrets & local environment (never commit)
+.env
+
+# Portable runtimes (never commit binaries)
+.node-portable/
+node.exe

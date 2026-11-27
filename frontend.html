@@ -62,8 +62,8 @@
 <div class="container-main">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-      <h4 class="mb-0" style="color:var(--accent);">🚌 Real-Time Public Transport Tracker</h4>
-      <div class="small-muted">Select a bus on the left map to view details and calculate fare & ETA.</div>
+      <h4 class="mb-0" style="color:var(--accent);">🚌 Delhi Bus Tracker (Demo)</h4>
+      <div class="small-muted">Select a bus on the left map to view details and calculate fare &amp; ETA. <strong>Demo data — simulated:</strong> positions and ETAs are sample data, not live feeds.</div>
     </div>
     <div class="text-end small-muted">
       
@@ -76,7 +76,7 @@
       <div class="map-card position-relative">
         <div id="map"></div>
         <div class="map-overlay">
-          <div style="font-weight:700;color:var(--blue)">Live Vehicle • <span id="overlayBus">12A</span></div>
+          <div style="font-weight:700;color:var(--blue)">Demo Vehicle (simulated) • <span id="overlayBus">12A</span></div>
           <div class="small-muted" id="overlayRoute">Route: Station → Market → College</div>
           <div style="margin-top:8px;font-size:13px">ETA: <strong id="overlayETA">3 min</strong> • Speed: <span id="overlaySpeed">18 km/h</span> • Stops left: <span id="overlayStops">4</span></div>
         </div>
@@ -96,7 +96,7 @@
             </select>
           </div>
           <div class="text-end small-muted">
-            <div><strong>Mode:</strong> Live</div>
+            <div><strong>Mode:</strong> Simulated demo</div>
             <div><span class="badge badge-status status-on">128 vehicles</span></div>
           </div>
         </div>
@@ -365,7 +365,7 @@
 
       map = L.map('map').setView([28.6139, 77.2090], 13);
       
-      // Multiple satellite providers for reliability
+      // Multiple satellite providers for reliability (token-free tile sources only)
       const satelliteProviders = [
         {
           url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
@@ -374,10 +374,6 @@
         {
           url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
           attribution: '© Esri Satellite'
-        },
-        {
-          url: 'https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw',
-          attribution: '© Mapbox Satellite'
         }
       ];
       

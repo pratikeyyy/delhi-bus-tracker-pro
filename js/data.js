@@ -1,4 +1,7 @@
-// Bus data for the application
+// Bus data for the application.
+// DEMO DATA — SIMULATED: these buses, routes, drivers, speeds and ETAs are
+// hardcoded sample data for demonstration only. Nothing here comes from a
+// live Delhi Transport feed.
 const busData = {
   "12A": { 
     id:"12A", 

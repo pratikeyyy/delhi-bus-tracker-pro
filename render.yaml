@@ -1,0 +1,15 @@
+# Render free-tier deployment (https://render.com).
+# The Node server serves the static frontend + mock demo API; it needs no
+# database, no paid add-on and no environment variables to run.
+# Deploy: Render dashboard -> New -> Web Service -> pick this repo.
+# Build Command: npm install | Start Command: node server.js
+services:
+  - type: web
+    name: delhi-bus-tracker-pro
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
